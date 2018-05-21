@@ -1,58 +1,85 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 
 # Create your views here.
-from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework import generics, viewsets
 from rest_framework.response import Response
-from games.models import Game
-from games.serializers import GameSerializer
+from rest_framework.reverse import reverse
+
+from games.models import Game, GameCategory, Player, Score
+from games.serializers import GameSerializer, GameCategorySerializer, ScoreSerializer, PlayerSerializer
 
 
-@api_view(['GET', 'POST'])
-def game_list(request):
+class GameCategoyViewSet(viewsets.ViewSet):
 
-    if request.method == 'GET':
+    # Required for the Browsable API renderer to have a nice form.
 
-        games = Game.objects.all()
-        games_serializer = GameSerializer(games, many=True)
-        return Response(games_serializer.data)
+    queryset = GameCategory.objects.all()
 
-    elif request.method == 'POST':
+    def list(self, request):
+        serializer = GameCategorySerializer(self.queryset, many=True, context={'request': request})
+        return Response(serializer.data)
 
-        game_serializer = GameSerializer(data=request.data)
+    def retrieve(self, request, pk=None):
 
-        if game_serializer.is_valid():
-            game_serializer.save()
-            return Response(game_serializer.data, status=status.HTTP_201_CREATED)
-        return Response(game_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        category = get_object_or_404(self.queryset, pk=pk)
+        serializer = GameCategorySerializer(category, context={'request': request})
+        return Response(serializer.data)
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
-def game_detail(request, pk):
+class GameCategoryList(generics.ListCreateAPIView):
+    queryset = GameCategory.objects.all()
+    serializer_class = GameCategorySerializer
+    name = 'gamecategory-list'
 
-    try:
-        game = Game.objects.get(pk=pk)
-    except Game.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'GET':
+class GameCategoryDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = GameCategory.objects.all()
+    serializer_class = GameCategorySerializer
+    name = 'gamecategory-detail'
 
-        game_serializer = GameSerializer(game)
-        return Response(game_serializer.data)
 
-    elif request.method == 'PUT':
+class GameList(generics.ListCreateAPIView):
+    queryset = Game.objects.all()
+    serializer_class = GameSerializer
+    name = 'game-list'
 
-        game_serializer = GameSerializer(game, data=request.data)
 
-        if game_serializer.is_valid():
-            game_serializer.save()
-            return Response(game_serializer.data)
-        return Response(game_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class GameDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Game.objects.all()
+    serializer_class = GameSerializer
+    name = 'game-detail'
 
-    elif request.method == 'DELETE':
 
-        game_serializer = GameSerializer(game, data=request.data)
+class PlayerList(generics.ListCreateAPIView):
+    queryset = Player.objects.all()
+    serializer_class = PlayerSerializer
+    name = 'player-list'
 
-        if game_serializer.initial_data['release_date'] :
-            game.delete()
-            Response(status=status.HTTP_204_NO_CONTENT)
+
+class PlayerDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Player.objects.all()
+    serializer_class = PlayerSerializer
+    name = 'player-detail'
+
+
+class ScoreList(generics.ListCreateAPIView):
+    queryset = Score.objects.all()
+    serializer_class = ScoreSerializer
+    name = 'score-list'
+
+
+class ScoreDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Score.objects.all()
+    serializer_class = ScoreSerializer
+    name = 'score-detail'
+
+
+class ApiRoot(generics.GenericAPIView):
+    name = 'api-root'
+
+    def get(self, request, *args, **kwargs):
+        return Response({'players': reverse(PlayerList.name, request=request),
+                         'game-categories': reverse(GameCategoryList.name, request=request),
+                         'games': reverse(GameList.name, request=request),
+                         'scores': reverse(ScoreList.name, request=request)
+                         })
